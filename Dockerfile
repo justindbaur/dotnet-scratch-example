@@ -1,6 +1,17 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 WORKDIR /src
 
+ARG TARGETPLATFORM
+
+RUN if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+    RID=linux-musl-x64 ; \
+    elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+    RID=linux-musl-arm64 ; \
+    elif [ "$TARGETPLATFORM" = "linux/arm/v7"]; then \
+    RID=linux-musl-arm ; \
+    fi \
+    && echo "RID=$RID" > /tmp/rid.txt
+
 RUN apk add --no-cache \
     clang \
     build-base \
@@ -15,9 +26,9 @@ COPY Scratch/Scratch.csproj Scratch/
 RUN dotnet restore Scratch/Scratch.csproj
 
 COPY Scratch/ Scratch/
-RUN dotnet publish Scratch/Scratch.csproj \
+RUN . /tmp/rid.txt && dotnet publish Scratch/Scratch.csproj \
     -c Release \
-    -r linux-musl-x64 \
+    -r $RID \
     -o /app/publish \
     -p:PublishAot=true \
     -p:StaticExecutable=true \
