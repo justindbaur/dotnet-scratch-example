@@ -3,14 +3,13 @@ WORKDIR /src
 
 ARG TARGETPLATFORM
 
-RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
-    RID=linux-musl-x64 ; \
-    elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-    RID=linux-musl-arm64 ; \
-    elif [ "$TARGETPLATFORM" = "linux/arm/v7"]; then \
-    RID=linux-musl-arm ; \
-    fi \
-    && echo "RID=$RID" > /tmp/rid.txt
+RUN case "${TARGETPLATFORM:-$(uname -m)}" in \
+    "linux/amd64"|"x86_64") RID="linux-musl-x64" ;; \
+    "linux/arm64"|"aarch64") RID="linux-musl-arm64" ;; \
+    "linux/arm/v7"|"armv7l") RID="linux-musl-arm" ;; \
+    *) echo "Unsupported platform: ${TARGETPLATFORM:-$(uname -m)}" >&2; exit 1 ;; \
+    esac \
+    && printf 'RID=%s\n' "$RID" > /tmp/rid.txt
 
 RUN apk add --no-cache \
     clang \
@@ -28,7 +27,7 @@ RUN dotnet restore Scratch/Scratch.csproj
 COPY Scratch/ Scratch/
 RUN . /tmp/rid.txt && dotnet publish Scratch/Scratch.csproj \
     -c Release \
-    -r $RID \
+    -r "$RID" \
     -o /app/publish \
     -p:PublishAot=true \
     -p:StaticExecutable=true \
